@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP8266 WiFi Robot Car</title>
+    <style>
+        /* Body Styling */
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #2d2d2d; /* Dark gray background */
+            color: #ffffff; /* White text for high contrast */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        /* Container for control interface */
+        .container {
+            max-width: 300px; /* Reduced width for centered controls */
+            width: 100%;
+            background-color: #424242; /* Slightly lighter gray for the container */
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Title Styling */
+        h2 {
+            margin-bottom: 20px;
+            font-size: 24px;
+            color: #ff4081; /* Bright pink for the title */
+        }
+
+        /* Button Styling */
+        .button {
+            background-color: #2979ff; /* Vibrant blue buttons */
+            border: none;
+            color: #fff;
+            padding: 15px;
+            margin: 10px;
+            font-size: 18px;
+            border-radius: 12px;
+            width: 80px;
+            height: 80px;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            box-shadow: 0 5px 15px rgba(41, 121, 255, 0.4);
+        }
+
+        /* Button active state */
+        .button:active {
+            background-color: #1c54b2; /* Darker blue on press */
+        }
+
+        /* Special styling for the stop button */
+        .button-stop {
+            background-color: #ff5252; /* Bright red for stop */
+            width: calc(100% - 40px);
+            margin-top: 15px;
+        }
+
+        /* Layout for control buttons */
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            justify-items: center;
+        }
+
+        /* Centered buttons in the grid */
+        .controls > :first-child,
+        .controls > :last-child {
+            grid-column: span 3;
+        }
+
+        /* Speed Slider Container */
+        .slider-container {
+            margin: 20px 0;
+        }
+
+        /* Speed Slider Styling */
+        .slider {
+            width: 100%;
+            accent-color: #ff4081; /* Pink slider thumb */
+        }
+
+        /* Status Display */
+        .status {
+            font-size: 16px;
+            margin-top: 20px;
+            color: #ffab40; /* Warm orange for status messages */
+        }
+
+        /* Styling for the action buttons */
+        .actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+
+        /* Rounded buttons for light and horn */
+        .button-round {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            font-size: 24px;
+            padding: 0;
+            line-height: 70px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Robot Car Controller</h2>
+        <div class="controls">
+            <button class="button" id="forwardBtn">↑</button>
+            <button class="button" id="leftBtn">←</button>
+            <button class="button" onclick="sendCommand('S')">🛑</button>
+            <button class="button" id="rightBtn">→</button>
+            <button class="button" id="backwardBtn">↓</button>
+        </div>
+        
+        <div class="slider-container">
+            <label for="speedSlider">Speed: <span id="speedValue">50</span></label>
+            <input type="range" min="0" max="9" value="5" class="slider" id="speedSlider" oninput="updateSpeed(this.value)">
+        </div>
+
+        <div class="actions">
+            <button class="button button-round" onclick="sendCommand('V')">🔊</button>
+            <button class="button button-round" onclick="toggleLights()">💡</button>
+        </div>
+
+        <div class="status" id="status">Status: Ready</div>
+    </div>
+
+    <script>
+        let lightsOn = false;
+
+        // Function to send commands to the server
+        function sendCommand(command) {
+            var xhr = new XMLHttpRequest();
+            var speed = document.getElementById("speedSlider").value;
+            xhr.open("GET", "/?State=" + command + "&Speed=" + speed, true);
+            xhr.send();
+            updateStatus(command);
+        }
+
+        // Update speed value
+        function updateSpeed(value) {
+            document.getElementById("speedValue").textContent = value * 10;
+            sendCommand(value); // Update speed command
+        }
+
+        // Toggle lights on/off
+        function toggleLights() {
+            lightsOn = !lightsOn;
+            var command = lightsOn ? "G" : "H"; // Custom commands for turning lights on/off
+            sendCommand(command);
+        }
+
+        // Update status display
+        function updateStatus(command) {
+            const status = document.getElementById("status");
+            switch(command) {
+                case 'F':
+                    status.textContent = "Status: Moving Forward";
+                    break;
+                case 'B':
+                    status.textContent = "Status: Moving Backward";
+                    break;
+                case 'L':
+                    status.textContent = "Status: Turning Left";
+                    break;
+                case 'R':
+                    status.textContent = "Status: Turning Right";
+                    break;
+                case 'S':
+                    status.textContent = "Status: Stopped";
+                    break;
+                case 'V':
+                    status.textContent = "Status: Buzzer Toggled";
+                    break;
+                default:
+                    status.textContent = "Status: Speed Updated";
+            }
+        }
+
+        // Event listeners for simultaneous button presses
+        const forwardBtn = document.getElementById('forwardBtn');
+        const leftBtn = document.getElementById('leftBtn');
+        const rightBtn = document.getElementById('rightBtn');
+        const backwardBtn = document.getElementById('backwardBtn');
+
+        forwardBtn.addEventListener('mousedown', () => sendCommand('F'));
+        forwardBtn.addEventListener('mouseup', () => sendCommand('S'));
+
+        backwardBtn.addEventListener('mousedown', () => sendCommand('B'));
+        backwardBtn.addEventListener('mouseup', () => sendCommand('S'));
+
+        leftBtn.addEventListener('mousedown', () => {
+            if (forwardBtn.matches(':active')) {
+                sendCommand('G');  // Go Ahead Left
+            } else if (backwardBtn.matches(':active')) {
+                sendCommand('H');  // Go Back Left
+            } else {
+                sendCommand('L');  // Just Turn Left
+            }
+        });
+        leftBtn.addEventListener('mouseup', () => sendCommand('S'));
+
+        rightBtn.addEventListener('mousedown', () => {
+            if (forwardBtn.matches(':active')) {
+                sendCommand('I');  // Go Ahead Right
+            } else if (backwardBtn.matches(':active')) {
+                sendCommand('J');  // Go Back Right
+            } else {
+                sendCommand('R');  // Just Turn Right
+            }
+        });
+        rightBtn.addEventListener('mouseup', () => sendCommand('S'));
+    </script>
+
+</body>
+</html>
